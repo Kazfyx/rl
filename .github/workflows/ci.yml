@@ -1,175 +1,55 @@
 name: CI
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+on: workflow_dispatch
 jobs:
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        name:
-          - macos-11
-          - ubuntu-20.04-clang
-          - ubuntu-20.04-gcc
-          - windows-2019-msvc
-          - windows-2019-msys2
-        include:
-          - name: macos-11
-            cmake_compiler_launcher: ccache
-            cmake_prefix_path: /usr/local/opt/qt/lib/cmake
-            os: macos-11
-          - name: ubuntu-20.04-clang
-            cc: clang
-            cmake_compiler_launcher: ccache
-            cxx: clang++
-            os: ubuntu-20.04
-          - name: ubuntu-20.04-gcc
-            cc: gcc
-            cmake_compiler_launcher: ccache
-            cxx: g++
-            os: ubuntu-20.04
-          - name: windows-2019-msvc
-            os: windows-2019
-          - name: windows-2019-msys2
-            cmake_compiler_launcher: ccache
-            os: windows-2019
+    runs-on: windows-2019
     env:
-      CC: ${{ matrix.cc }}
       CCACHE_COMPRESS: true
       CCACHE_MAXSIZE: 500M
-      CMAKE_C_COMPILER_LAUNCHER: ${{ matrix.cmake_compiler_launcher }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ matrix.cmake_compiler_launcher }}
-      CMAKE_PREFIX_PATH: ${{ matrix.cmake_prefix_path }}
-      CXX: ${{ matrix.cxx }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - if: matrix.os == 'macos-11'
-        name: Set up Tap
-        run: brew tap roboticslibrary/rl
-      - if: matrix.os == 'ubuntu-20.04'
-        name: Set up PPA
-        run: |
-          sudo apt-get install -y software-properties-common
-          sudo apt-add-repository -y -u ppa:roblib/ppa
-      - if: matrix.os == 'macos-11'
-        name: Install dependencies for macOS
-        run: >
-          brew install
-          boost
-          bullet
-          ccache
-          cmake
-          coin
-          eigen
-          fcl
-          ninja
-          nlopt
-          ode
-          pqp
-          qt
-          solid
-          soqt
-      - if: matrix.os == 'ubuntu-20.04'
-        name: Install dependencies for Ubuntu
-        run: >
-          sudo apt-get install -y
-          build-essential
-          ccache
-          clang
-          cmake
-          libboost-dev
-          libbullet-dev
-          libcomedi-dev
-          libdc1394-22-dev
-          libeigen3-dev
-          libfcl-dev
-          libnlopt-dev
-          libode-dev
-          libpqp-dev
-          libsimage-dev
-          libsolid3d-dev
-          libsoqt-dev
-          libxml2-dev
-          libxslt1-dev
-          ninja-build
-      - if: matrix.name == 'windows-2019-msvc'
-        name: Enable Developer Command Prompt
+      - name: Enable Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
-      - if: matrix.name == 'windows-2019-msvc'
-        name: Install dependencies for MSVC
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.15.2'
+          arch: 'win64_msvc2019_64'
+          archives: 'qtbase qtsvg'
+          extra: '--external 7z'
+      - name: Install dependencies for MSVC
         working-directory: ${{ runner.workspace }}
         run: |
-          curl -L https://github.com/roboticslibrary/rl-3rdparty/releases/download/latest/rl-3rdparty-msvc-14.2-x64.7z -o rl-3rdparty-msvc-14.2-x64.7z
+          curl -L https://github.com/Kazfyx/rl-3rdparty/releases/download/latest/rl-3rdparty-msvc-14.2-x64.7z -o rl-3rdparty-msvc-14.2-x64.7z
           7z x rl-3rdparty-msvc-14.2-x64.7z -orl-3rdparty-install
           Write-Output "${{ runner.workspace }}\rl-3rdparty-install\bin" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
-      - if: matrix.name == 'windows-2019-msys2'
-        name: Set up MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          install: >-
-            mingw-w64-x86_64-boost
-            mingw-w64-x86_64-bullet
-            mingw-w64-x86_64-ccache
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-coin
-            mingw-w64-x86_64-eigen3
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-libxml2
-            mingw-w64-x86_64-libxslt
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-nlopt
-            mingw-w64-x86_64-ode
-            mingw-w64-x86_64-pqp
-            mingw-w64-x86_64-qt5
-            mingw-w64-x86_64-solid3
-            mingw-w64-x86_64-soqt
-          update: true
-      - if: matrix.name == 'windows-2019-msys2'
-        name: Add MSYS2 to PATH
-        run: |
-          Write-Output (msys2 -c "cygpath -w /mingw64/bin") | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
-      - if: matrix.os != 'windows-2019'
-        name: Update environment variables
-        run: |
-          echo "CCACHE_BASEDIR=${{ runner.workspace }}" >> $GITHUB_ENV
-          echo "CCACHE_DIR=${{ runner.workspace }}/.ccache" >> $GITHUB_ENV
-      - if: matrix.os == 'windows-2019'
-        name: Update environment variables
+      - name: Update environment variables
         run: |
           Write-Output "CCACHE_BASEDIR=${{ runner.workspace }}" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
           Write-Output "CCACHE_DIR=${{ runner.workspace }}\.ccache" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
-      - if: matrix.cmake_compiler_launcher != ''
-        name: Cache compiler
-        uses: actions/cache@v3
-        with:
-          path: ${{ runner.workspace }}/.ccache
-          key: ${{ matrix.name }}-ccache-${{ github.sha }}
-          restore-keys: ${{ matrix.name }}-ccache-
       - name: Configure CMake
         run: >
           cmake
-          -GNinja
-          -DCMAKE_BUILD_TYPE=Release
+          -G"Visual Studio 16 2019" -A x64
+          -DCMAKE_INSTALL_PREFIX="${{ runner.workspace }}/rl-install"
           -S"${{ github.workspace }}"
           -B"${{ runner.workspace }}/rl-build"
-      - name: Build
+      - name: Build Debug
         working-directory: ${{ runner.workspace }}/rl-build
-        run: cmake --build .
-      - name: Test
+        run: cmake --build . --config Debug --target INSTALL
+      - name: Build Release
         working-directory: ${{ runner.workspace }}/rl-build
-        run: ctest --output-on-failure
+        run: cmake --build . --config Release --target INSTALL
+#      - name: Test
+#        working-directory: ${{ runner.workspace }}/rl-build
+#        run: ctest --output-on-failure
       - name: Create archive
         working-directory: ${{ runner.workspace }}/rl-build
-        run: cpack -G 7Z
+        run: 7z a rl-qt5.7z "${{ runner.workspace }}/rl-install"
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.name }}
+          name: rl-windows-2019-msvc
           path: ${{ runner.workspace }}/rl-build/rl-*.7z
