@@ -9,16 +9,16 @@ jobs:
       CCACHE_MAXSIZE: 500M
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Enable Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          version: '5.15.2'
-          arch: 'win64_msvc2019_64'
-          archives: 'qtbase qtsvg'
-          extra: '--external 7z'
+          version: 6.3.2
+          arch: win64_msvc2019_64
+          archives: qtbase qtsvg
+          extra: --external 7z
       - name: Install dependencies for MSVC
         working-directory: ${{ runner.workspace }}
         run: |
@@ -47,9 +47,9 @@ jobs:
 #        run: ctest --output-on-failure
       - name: Create archive
         working-directory: ${{ runner.workspace }}/rl-build
-        run: 7z a rl-qt5.7z "${{ runner.workspace }}/rl-install"
+        run: 7z a rl.7z "${{ runner.workspace }}/rl-install"
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
           name: rl-windows-2019-msvc
-          path: ${{ runner.workspace }}/rl-build/rl-*.7z
+          path: ${{ runner.workspace }}/rl-build/rl.7z
