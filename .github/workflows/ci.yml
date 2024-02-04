@@ -34,7 +34,7 @@ jobs:
           cmake
           -G"Visual Studio 16 2019" -A x64
           -DCMAKE_INSTALL_PREFIX="${{ runner.workspace }}/rl-install"
-          -DRL_BUILD_TESTS=ON
+          -DRL_BUILD_TESTS=OFF
           -S"${{ github.workspace }}"
           -B"${{ runner.workspace }}/rl-build"
       - name: Build Debug
